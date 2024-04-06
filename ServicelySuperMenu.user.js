@@ -36,15 +36,14 @@ const log = (...args) => {
 
 // biome-ignore lint/complexity/useArrowFunction: <explanation>
 (function () {
-	log("HIIIIIIIIIIIIIIIII");
-	waitForEl(SEARCH_INPUT, () => {
-		const search = document.querySelector(SEARCH_INPUT);
-		search.placeholder = "? to focus search ...";
-	});
-
 	waitForEl(".app-header-console-content", () => {
 		log("Menu Bar found; Adding Menu");
 		setupMenu();
+	});
+
+	waitForEl(SEARCH_INPUT, () => {
+		const search = document.querySelector(SEARCH_INPUT);
+		search.placeholder = "? to focus search ...";
 	});
 
 	Mousetrap.bind("!", () => {
