@@ -12,137 +12,39 @@
 // ==/UserScript==
 
 // Servicely already has jQuery loaded
-/* globals jQuery, $, Mousetrap, h */
+/* globals jQuery, $, Mousetrap */
 
-// Constants
 const SCRIPT_NAME = "Servicely Super Menu";
 const PKG_NAME = "servicely-super-menu";
+const FOCUS_CLASS = "is-current";
+const ICON = `<i class="fa fa-rocket"></i>`;
+const MODAL_WIDTH = "600px";
 
-const HOTKEYS = [
-	["?", "to clear the sidbar menu search bar and give it focus."],
-	["up", "to move the sidebar menu focus up the tree."],
-	["down", "to move the sidebar menu focus down the tree."],
-	["!", "to expand / collapse all top level headings."],
-];
+const SEARCH_INPUT = 'input[name="search-main-menu"]';
 
-function setupMenu() {
-	const modalHtml = $(
-		[
-			`<div id="${PKG_NAME}" class="${PKG_NAME}_modal">`,
-			`  <div class="${PKG_NAME}_modal-content">`,
-			`    <span class="${PKG_NAME}_close-btn">&times;</span>`,
-			`    <h1><i class="fa fa-rocket"></i>${SCRIPT_NAME}</h1>`,
-			"    <p>Welcome! This UserScript adds keyboard shortcuts to aid the navigation of Servicely via the keyboard.</p>",
-			"    <h2>Current Hotkeys:</h2>",
-			...HOTKEYS.map(
-				([key, desc]) => `    <p>Press <kbd>${key}</kbd> ${desc}</p>`,
-			),
-			//'    <p>Press <kbd>?</kbd> to clear the menu search bar and give it focus.</p>',
-			"  </div>",
-			"</div>",
-		].join("\n"),
-	);
-
-	console.log("====================================", modalHtml);
-
-	$("body").append(modalHtml);
-
-	const modal = $(`#${PKG_NAME}`);
-	$(`.${PKG_NAME}_close-btn`, modal).click(() => modal.hide());
-
-	const newLink = $(
-		`<a class="app-header-console-btn" title="${SCRIPT_NAME}" href="#"><i class="fa fa-rocket"></i></a>`,
-	);
-
-	$(newLink).click((e) => {
-		e.preventDefault();
-		modal.show();
-	});
-	$(".app-header-console-content span a:eq(1)").after(newLink);
-}
-
-/**
- * BEGIN SCRIPT
- */
 let visibleLinks = [];
 let firstTab = true;
 let focusedLinkIndex = -1;
 
-function handleTab(isForward) {
-	if (firstTab) {
-		const links = $("#main-navigation a.menu-application-page-btn:visible");
-		if (links.length > 0) {
-			visibleLinks = links;
-			firstTab = false;
-			// Initialize focused index based on the direction
-			focusedLinkIndex = isForward ? -1 : 0;
-		} else {
-			// No visible links to navigate
-			return false;
-		}
-	}
-
-	// Clear current focus
-	if (visibleLinks[focusedLinkIndex]) {
-		$(visibleLinks[focusedLinkIndex]).removeClass("is-current");
-	}
-
-	if (isForward) {
-		// Move forward through the list
-		focusedLinkIndex++;
-		if (focusedLinkIndex >= visibleLinks.length) {
-			focusedLinkIndex = 0; // Wrap to the beginning
-		}
-	} else {
-		// Move backward through the list
-		focusedLinkIndex--;
-		if (focusedLinkIndex < 0) {
-			focusedLinkIndex = visibleLinks.length - 1; // Wrap to the end
-		}
-	}
-
-	if (visibleLinks[focusedLinkIndex]) {
-		$(visibleLinks[focusedLinkIndex]).addClass("is-current");
-		console.log(`Focusing ${focusedLinkIndex}`);
-	}
-
-	return false; // Prevent the default tab behavior
-}
-
-function watchDOMForElements(selector, handler) {
-	const found = new Promise((resolve, reject) => {
-		const observer = new MutationObserver((mutationsList, observer) => {
-			const elements = document.querySelectorAll(selector);
-			if (elements.length > 0) {
-				observer.disconnect();
-				resolve(elements);
-			}
-		});
-		observer.observe(document.body, { subtree: true, childList: true });
-	});
-	return found.then(handler);
-}
+const log = (...args) => {
+	console.log(
+		"%cServicelySuperMenu",
+		"background-color:#870BC8;color:white;font-size:1rem;padding:0 5px;border-radius:10px;",
+		...args,
+	);
+};
 
 // biome-ignore lint/complexity/useArrowFunction: <explanation>
 (function () {
-	jQuery(($) => {
+	log("HIIIIIIIIIIIIIIIII");
+	waitForEl(SEARCH_INPUT, () => {
+		const search = document.querySelector(SEARCH_INPUT);
+		search.placeholder = "? to focus search ...";
+	});
+
+	waitForEl(".app-header-console-content", () => {
+		log("Menu Bar found; Adding Menu");
 		setupMenu();
-	});
-
-	watchDOMForElements(`input[name="search-main-menu"]`, () => {
-		setTimeout(() => {
-			const search = document.querySelector(`input[name="search-main-menu"]`);
-			search.placeholder = "? to focus search ...";
-		}, 500);
-	});
-
-	Mousetrap.bind("?", () => {
-		firstTab = true;
-		visibleLinks = [];
-		const searchField = $(`input[name="search-main-menu"]`);
-		if (searchField) {
-			searchField.val("").focus();
-		}
 	});
 
 	Mousetrap.bind("!", () => {
@@ -153,8 +55,17 @@ function watchDOMForElements(selector, handler) {
 		});
 	});
 
+	Mousetrap.bind("?", () => {
+		firstTab = true;
+		visibleLinks = [];
+		const searchField = $(SEARCH_INPUT);
+		if (searchField) {
+			searchField.val("").focus();
+		}
+	});
+
 	Mousetrap.bind("enter", () => {
-		console.log(`Clicking ${focusedLinkIndex}`, visibleLinks[focusedLinkIndex]);
+		log(`Clicking ${focusedLinkIndex}`, visibleLinks[focusedLinkIndex]);
 		const href = $(visibleLinks[focusedLinkIndex]).attr("href");
 		window.location = href;
 	});
@@ -166,8 +77,50 @@ function watchDOMForElements(selector, handler) {
 	Mousetrap.bind("up", () => handleTab(false)); // Bind reverse tab
 })();
 
+function setupMenu() {
+	const modalHtml = $(
+		[
+			`<div id="${PKG_NAME}" class="${PKG_NAME}_modal">`,
+			`  <div class="${PKG_NAME}_modal-content">`,
+			`    <span class="${PKG_NAME}_close-btn">&times;</span>`,
+			`    <h1>${ICON}${SCRIPT_NAME}</h1>`,
+			"    <p>Welcome! This UserScript adds keyboard shortcuts to aid the navigation of Servicely via the keyboard.</p>",
+			"    <h2>Active Hotkeys:</h2>",
+			...[
+				["!", "Expand / Collapse all top level headings."],
+				["?", "Clear and focus the sidebar search menu."],
+				[
+					"up",
+					"or <kbd>shift</kbd>+<kbd>tab</kbd> Moves the sidebar menu focus up the tree.",
+				],
+				[
+					"down",
+					"or <kbd>tab</kbd> Moves the sidebar menu focus down the tree.",
+				],
+			].map(([key, desc]) => `<p><kbd>${key}</kbd> ${desc}</p>`),
+			"  </div>",
+			"</div>",
+		].join("\n"),
+	);
+
+	$("body").append(modalHtml);
+
+	const modal = $(`#${PKG_NAME}`);
+	$(`.${PKG_NAME}_close-btn`, modal).click(() => modal.hide());
+
+	const newLink = $(
+		`<a class="app-header-console-btn" title="${SCRIPT_NAME}" href="#">${ICON}</a>`,
+	);
+
+	$(newLink).click((e) => {
+		e.preventDefault();
+		modal.show();
+	});
+	log("Adding icon to top menu bar");
+	$(".app-header-console-content span a:eq(1)").after(newLink);
+}
+
 GM_addStyle(`
- /* The Modal (background) */
 .${PKG_NAME}_modal {
   display: none; /* Hidden by default */
   position: fixed; /* Stay in place */
@@ -181,14 +134,13 @@ GM_addStyle(`
   background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
 }
 
-/* Modal Content/Box */
 .${PKG_NAME}_modal-content {
   background-color: #fefefe;
-  margin: 15% auto; /* 15% from the top and centered */
+  margin: 10% auto; /* 15% from the top and centered */
   padding: 20px;
   border: 1px solid #888;
   border-radius: 6px;
-  width: 60%; /* Could be more or less, depending on screen size */
+  width: ${MODAL_WIDTH}; /* Could be more or less, depending on screen size */
 }
 
 .${PKG_NAME}_modal-content h1 {
@@ -215,3 +167,62 @@ GM_addStyle(`
   cursor: pointer;
 }
 `);
+
+/**
+ * Wait for the specified element to appear in the DOM. When the element appears,
+ * provide it to the callback.
+ *
+ * @param selector a jQuery selector (eg, 'div.container img')
+ * @param callback function that takes selected element (null if timeout)
+ * @param interval ms wait between each try
+ */
+function waitForEl(selector, callback, interval) {
+	const poller = setInterval(() => {
+		const el = jQuery(selector);
+		if (el.length < 1) return;
+		clearInterval(poller);
+		callback(el.length ? el : null);
+	}, interval || 200);
+}
+
+function handleTab(isForward) {
+	log("Moving focus");
+	if (firstTab) {
+		const links = $("#main-navigation a.menu-application-page-btn:visible");
+		if (links.length > 0) {
+			visibleLinks = links;
+			firstTab = false;
+			// Initialize focused index based on the direction
+			focusedLinkIndex = isForward ? -1 : 0;
+		} else {
+			// No visible links to navigate
+			return false;
+		}
+	}
+
+	// Clear current focus
+	if (visibleLinks[focusedLinkIndex]) {
+		$(visibleLinks[focusedLinkIndex]).removeClass(FOCUS_CLASS);
+	}
+
+	if (isForward) {
+		// Move forward through the list
+		focusedLinkIndex++;
+		if (focusedLinkIndex >= visibleLinks.length) {
+			focusedLinkIndex = 0; // Wrap to the beginning
+		}
+	} else {
+		// Move backward through the list
+		focusedLinkIndex--;
+		if (focusedLinkIndex < 0) {
+			focusedLinkIndex = visibleLinks.length - 1; // Wrap to the end
+		}
+	}
+
+	if (visibleLinks[focusedLinkIndex]) {
+		$(visibleLinks[focusedLinkIndex]).addClass(FOCUS_CLASS);
+		log(`Focusing index ${focusedLinkIndex}`);
+	}
+
+	return false; // Prevent the default tab behavior
+}
