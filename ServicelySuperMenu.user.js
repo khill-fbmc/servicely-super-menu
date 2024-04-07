@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Servicely Super Menu
 // @namespace    http://gofortuna.com
-// @version      2.0.1
+// @version      2.1.0
 // @description  Sidebar search enhancements
 // @author       You
 // @match        https://fortuna.servicely.ai/*
@@ -21,6 +21,15 @@ const ICON = `<i class="fa fa-rocket"></i>`;
 const MODAL_WIDTH = "600px";
 
 const SEARCH_INPUT = 'input[name="search-main-menu"]';
+
+const HOTKEYS = [
+	["!", "Expand / Collapse all top level headings."],
+	["?", "Clear and focus the sidebar search menu."],
+	["tab", "Moves the sidebar menu focus down the tree."],
+	[["shift", "tab"], "Moves the sidebar menu focus up the tree."],
+	[["alt", "n"], "Trigger a click on the 'New' button."],
+	[["alt", "b"], "Trigger a click on the 'Back' button."],
+];
 
 let visibleLinks = [];
 let firstTab = true;
@@ -72,8 +81,19 @@ const log = (...args) => {
 	Mousetrap.bind("tab", () => handleTab(true)); // Bind forward tab
 	Mousetrap.bind("shift+tab", () => handleTab(false)); // Bind reverse tab
 
-	Mousetrap.bind("down", () => handleTab(true)); // Bind forward tab
-	Mousetrap.bind("up", () => handleTab(false)); // Bind reverse tab
+	Mousetrap.bind("alt+b", () => {
+		log(`Going back`);
+		$("button:contains('Back')").click();
+	});
+
+	Mousetrap.bind("alt+n", () => {
+		const resource = window.location.href.match(/#\/(\w+)/)[1];
+		log(`Starting new ${resource}`);
+		$("button:contains('New')").click();
+	});
+
+	//Mousetrap.bind("down", () => handleTab(true)); // Bind forward tab
+	//Mousetrap.bind("up", () => handleTab(false)); // Bind reverse tab
 })();
 
 function setupMenu() {
@@ -83,20 +103,14 @@ function setupMenu() {
 			`  <div class="${PKG_NAME}_modal-content">`,
 			`    <span class="${PKG_NAME}_close-btn">&times;</span>`,
 			`    <h1>${ICON}${SCRIPT_NAME}</h1>`,
-			"    <p>Welcome! This UserScript adds keyboard shortcuts to aid the navigation of Servicely via the keyboard.</p>",
+			"    <p>Welcome! This UserScript adds hotkeys to aid the navigation of Servicely via the keyboard.</p>",
 			"    <h2>Active Hotkeys:</h2>",
-			...[
-				["!", "Expand / Collapse all top level headings."],
-				["?", "Clear and focus the sidebar search menu."],
-				[
-					"up",
-					"or <kbd>shift</kbd>+<kbd>tab</kbd> Moves the sidebar menu focus up the tree.",
-				],
-				[
-					"down",
-					"or <kbd>tab</kbd> Moves the sidebar menu focus down the tree.",
-				],
-			].map(([key, desc]) => `<p><kbd>${key}</kbd> ${desc}</p>`),
+			...HOTKEYS.map(
+				([key, desc]) =>
+					`<p>${(typeof key === "string" ? [key] : key)
+						.map((k) => `<kbd>${k}</kbd>`)
+						.join(" + ")} ${desc}</p>`,
+			),
 			"  </div>",
 			"</div>",
 		].join("\n"),
