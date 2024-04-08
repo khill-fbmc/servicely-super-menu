@@ -7,179 +7,133 @@
 // @match        https://fortuna.servicely.ai/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=servicely.ai
 // @grant        GM_addStyle
-// @require      https://cdnjs.cloudflare.com/ajax/libs/mousetrap/1.6.5/mousetrap.min.js
+// @require      https://unpkg.com/mousetrap@1.6.5/mousetrap.js
+// @require      https://unpkg.com/htm@3.1.1/dist/htm.umd.js
+// @require      https://unpkg.com/vanillah@1.0.7/dist/vanillah.umd.js
 // @run-at       document-idle
 // ==/UserScript==
 
-// Servicely already has jQuery loaded
-/* globals jQuery, $, Mousetrap */
+// Servicely already has jQuery & Knockout loaded
+/* globals jQuery, $, KO, Mousetrap, htm, vanillaH */
+const html = htm.bind(vanillaH(document));
 
 const SCRIPT_NAME = "Servicely Super Menu";
 const PKG_NAME = "servicely-super-menu";
 const FOCUS_CLASS = "is-current";
-const ICON = `<i class="fa fa-rocket"></i>`;
+const ICON = "fa-rocket";
 const MODAL_WIDTH = "600px";
-
 const SEARCH_INPUT = 'input[name="search-main-menu"]';
-
-const HOTKEYS = [
-	["!", "Expand / Collapse all top level headings."],
-	["?", "Clear and focus the sidebar search menu."],
-	["tab", "Moves the sidebar menu focus down the tree."],
-	[["shift", "tab"], "Moves the sidebar menu focus up the tree."],
-	[["alt", "n"], "Trigger a click on the 'New' button."],
-	[["alt", "b"], "Trigger a click on the 'Back' button."],
-];
 
 let visibleLinks = [];
 let firstTab = true;
 let focusedLinkIndex = -1;
 
-const log = (...args) => {
-	console.log(
-		"%cServicelySuperMenu",
-		"background-color:#870BC8;color:white;font-size:1rem;padding:0 5px;border-radius:10px;",
-		...args,
-	);
-};
-
-// biome-ignore lint/complexity/useArrowFunction: <explanation>
-(function () {
+(() => {
 	waitForEl(".app-header-console-content", () => {
-		log("Menu Bar found; Adding Menu");
+		log(`Menu bar found, adding launcher icon "${ICON}"`);
 		setupMenu();
 	});
 
-	waitForEl(SEARCH_INPUT, () => {
-		const search = document.querySelector(SEARCH_INPUT);
-		search.placeholder = "? to focus search ...";
-	});
-
-	Mousetrap.bind("!", () => {
+	defineHotkey("!", () => {
 		const topics = $("#main-navigation li.menu-application-item > a");
-		topics.each((idx, heading) => {
-			console.log(heading);
+		topics.each((_, heading) => {
+			log(`Expanding ${heading.innerText}`);
 			$(heading).click();
 		});
 	});
 
-	Mousetrap.bind("?", () => {
+	defineHotkey("?", () => {
 		firstTab = true;
 		visibleLinks = [];
 		const searchField = $(SEARCH_INPUT);
-		if (searchField) {
+		if (searchField.length) {
 			searchField.val("").focus();
 		}
 	});
 
-	Mousetrap.bind("enter", () => {
-		log(`Clicking ${focusedLinkIndex}`, visibleLinks[focusedLinkIndex]);
+	defineHotkey("enter", () => {
 		const href = $(visibleLinks[focusedLinkIndex]).attr("href");
-		window.location = href;
+		if (href.length) {
+			log(`Clicking ${focusedLinkIndex}`, visibleLinks[focusedLinkIndex]);
+			window.location = href;
+		}
 	});
 
-	Mousetrap.bind("tab", () => handleTab(true)); // Bind forward tab
-	Mousetrap.bind("shift+tab", () => handleTab(false)); // Bind reverse tab
+	defineHotkey("tab", () => handleTab(true)); // Bind forward tab
+	defineHotkey("shift+tab", () => handleTab(false)); // Bind reverse tab
 
-	Mousetrap.bind("alt+b", () => {
-		log(`Going back`);
+	defineHotkey("alt+b", () => {
 		$("button:contains('Back')").click();
 	});
 
-	Mousetrap.bind("alt+n", () => {
+	defineHotkey("alt+n", () => {
 		const resource = window.location.href.match(/#\/(\w+)/)[1];
 		log(`Starting new ${resource}`);
 		$("button:contains('New')").click();
 	});
 
-	//Mousetrap.bind("down", () => handleTab(true)); // Bind forward tab
-	//Mousetrap.bind("up", () => handleTab(false)); // Bind reverse tab
+	defineHotkey("alt+z", () => {
+		const content = html`<div id="testest">hi<span data-bind="text: personName">taco</span></div>`;
+		$("#detailMain").html(content);
+	});
+
+	defineHotkey("alt+x", () => {
+		const myViewModel = {
+			personName: KO.observable("Bob"),
+			personAge: KO.observable(123),
+		};
+		setInterval(() => myViewModel.personName(new Date()), 500);
+		KO.applyBindings(myViewModel, document.getElementById("testest"));
+	});
 })();
 
-function setupMenu() {
-	const modalHtml = $(
-		[
-			`<div id="${PKG_NAME}" class="${PKG_NAME}_modal">`,
-			`  <div class="${PKG_NAME}_modal-content">`,
-			`    <span class="${PKG_NAME}_close-btn">&times;</span>`,
-			`    <h1>${ICON}${SCRIPT_NAME}</h1>`,
-			"    <p>Welcome! This UserScript adds hotkeys to aid the navigation of Servicely via the keyboard.</p>",
-			"    <h2>Active Hotkeys:</h2>",
-			...HOTKEYS.map(
-				([key, desc]) =>
-					`<p>${(typeof key === "string" ? [key] : key)
-						.map((k) => `<kbd>${k}</kbd>`)
-						.join(" + ")} ${desc}</p>`,
-			),
-			"  </div>",
-			"</div>",
-		].join("\n"),
+function log(...args) {
+	console.log(
+		`%c${SCRIPT_NAME.replaceAll(" ", "")}`,
+		"background-color:#870BC8;color:white;font-size:1rem;padding:0 5px;border-radius:10px;",
+		...args,
 	);
+}
 
-	$("body").append(modalHtml);
+function defineHotkey(combo, handler) {
+	Mousetrap.bind(combo, () => {
+		log(`Hotkey Pressed: "${combo}"`);
+		handler();
+	});
+}
+
+function setupMenu() {
+	const modalHtml = html`
+        <div id="${PKG_NAME}" class="${PKG_NAME}_modal">
+            <div class="${PKG_NAME}_modal-content">
+                <span class="${PKG_NAME}_close-btn">×</span>
+			    <h1><i class="fa ${ICON}"></i>${SCRIPT_NAME}</h1>
+			    <p>Welcome! This UserScript adds hotkeys to aid the navigation of Servicely via the keyboard.</p>
+			    <p>The hotkeys are divided into two groups, to control the sidbar and click buttons.</p>
+                <h2>Sidebar</h2>
+			    <p><kbd>!</kbd> Expand / Collapse all top level headings.</p>
+                <p><kbd>?</kbd> Clear and focus the sidebar search menu.</p>
+                <p><kbd>tab</kbd> Moves the sidebar menu focus down the tree.</p>
+                <p><kbd>shift</kbd> + <kbd>tab</kbd> Moves the sidebar menu focus up the tree.</p>
+                <h2>Buttons</h2>
+                <p><kbd>alt</kbd> + <kbd>n</kbd> Trigger a click on the 'New' button.</p>
+                <p><kbd>alt</kbd> + <kbd>b</kbd> Trigger a click on the 'Back' button.</p>
+			</div>
+        </div>`;
+	document.body.appendChild(modalHtml);
 
 	const modal = $(`#${PKG_NAME}`);
-	$(`.${PKG_NAME}_close-btn`, modal).click(() => modal.hide());
-
 	const newLink = $(
-		`<a class="app-header-console-btn" title="${SCRIPT_NAME}" href="#">${ICON}</a>`,
+		`<a class="app-header-console-btn" title="${SCRIPT_NAME}" href=""><i class="fa ${ICON}"></i></a>`,
 	);
 
 	$(newLink).click((e) => {
 		e.preventDefault();
 		modal.show();
 	});
-	log("Adding icon to top menu bar");
+	$(`.${PKG_NAME}_close-btn`, modal).click(() => modal.hide());
 	$(".app-header-console-content span a:eq(1)").after(newLink);
 }
-
-GM_addStyle(`
-.${PKG_NAME}_modal {
-  display: none; /* Hidden by default */
-  position: fixed; /* Stay in place */
-  z-index: 9999; /* Sit on top */
-  left: 0;
-  top: 0;
-  width: 100%; /* Full width */
-  height: 100%; /* Full height */
-  overflow: auto; /* Enable scroll if needed */
-  background-color: rgb(0,0,0); /* Fallback color */
-  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-}
-
-.${PKG_NAME}_modal-content {
-  background-color: #fefefe;
-  margin: 10% auto; /* 15% from the top and centered */
-  padding: 20px;
-  border: 1px solid #888;
-  border-radius: 6px;
-  width: ${MODAL_WIDTH}; /* Could be more or less, depending on screen size */
-}
-
-.${PKG_NAME}_modal-content h1 {
-  margin-top: 0 !important;
-}
-
-.${PKG_NAME}_modal-content h1 i {
-  margin-right: 15px;
-}
-
-/* The Close Button */
-.${PKG_NAME}_close-btn {
-  color: #aaa;
-  display: inline-block;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
-}
-
-.${PKG_NAME}_close-btn:hover,
-.${PKG_NAME}_close-btn:focus {
-  color: black;
-  text-decoration: none;
-  cursor: pointer;
-}
-`);
 
 /**
  * Wait for the specified element to appear in the DOM. When the element appears,
@@ -239,3 +193,65 @@ function handleTab(isForward) {
 
 	return false; // Prevent the default tab behavior
 }
+
+const localStore = {
+	set: (key, value) => localStorage.setItem(key, JSON.stringify(value)),
+	get: (key) => {
+		const item = localStorage.getItem(key);
+		return item ? JSON.parse(item) : null;
+	},
+	remove: (key) => localStorage.removeItem(key),
+	clear: () => localStorage.clear(),
+};
+
+GM_addStyle(`
+.${PKG_NAME}_modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 9999; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0);
+  background-color: rgba(0,0,0,0.6);
+}
+
+.${PKG_NAME}_modal-content {
+  background-color: #fefefe;
+  margin: 5% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  border-radius: 6px;
+  width: ${MODAL_WIDTH};
+}
+
+.${PKG_NAME}_modal-content kbd:last-child {
+  margin-right: 5px;
+}
+
+.${PKG_NAME}_modal-content h1 {
+  margin-top: 0 !important;
+}
+
+.${PKG_NAME}_modal-content h1 i {
+  margin-right: 15px;
+}
+
+/* The Close Button */
+.${PKG_NAME}_close-btn {
+  color: #aaa;
+  display: inline-block;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.${PKG_NAME}_close-btn:hover,
+.${PKG_NAME}_close-btn:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+`);
