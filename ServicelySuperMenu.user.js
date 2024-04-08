@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Servicely Super Menu
 // @namespace    http://gofortuna.com
-// @version      2.1.0
+// @version      2.2.0
 // @description  Sidebar search enhancements
 // @author       You
 // @match        https://fortuna.servicely.ai/*
@@ -21,17 +21,18 @@ const SCRIPT_NAME = "Servicely Super Menu";
 const PKG_NAME = "servicely-super-menu";
 const FOCUS_CLASS = "is-current";
 const ICON = "fa-rocket";
+const SCRIPT_ICON = "fa-terminal";
 const MODAL_WIDTH = "600px";
-const SEARCH_INPUT = 'input[name="search-main-menu"]';
 
 let visibleLinks = [];
 let firstTab = true;
 let focusedLinkIndex = -1;
 
 (() => {
-	waitForEl(".app-header-console-content", () => {
-		log(`Menu bar found, adding launcher icon "${ICON}"`);
-		setupMenu();
+	waitForSelector(".app-header-console-content", () => {
+		log("Initializing Menu");
+		appendMenuHtml();
+		addMenuButtons();
 	});
 
 	defineHotkey("!", () => {
@@ -45,7 +46,7 @@ let focusedLinkIndex = -1;
 	defineHotkey("?", () => {
 		firstTab = true;
 		visibleLinks = [];
-		const searchField = $(SEARCH_INPUT);
+		const searchField = $('input[name="search-main-menu"]');
 		if (searchField.length) {
 			searchField.val("").focus();
 		}
@@ -62,6 +63,11 @@ let focusedLinkIndex = -1;
 	defineHotkey("tab", () => handleTab(true)); // Bind forward tab
 	defineHotkey("shift+tab", () => handleTab(false)); // Bind reverse tab
 
+	defineHotkey("alt+m", () => {
+		log("Toggling menu visibility");
+		$("#menu-trigger").click();
+	});
+
 	defineHotkey("alt+b", () => {
 		$("button:contains('Back')").click();
 	});
@@ -72,6 +78,7 @@ let focusedLinkIndex = -1;
 		$("button:contains('New')").click();
 	});
 
+	/*
 	defineHotkey("alt+z", () => {
 		const content = html`<div id="testest">hi<span data-bind="text: personName">taco</span></div>`;
 		$("#detailMain").html(content);
@@ -85,6 +92,7 @@ let focusedLinkIndex = -1;
 		setInterval(() => myViewModel.personName(new Date()), 500);
 		KO.applyBindings(myViewModel, document.getElementById("testest"));
 	});
+*/
 })();
 
 function log(...args) {
@@ -96,13 +104,15 @@ function log(...args) {
 }
 
 function defineHotkey(combo, handler) {
-	Mousetrap.bind(combo, () => {
+	log(`Binding Hotkey: ${combo}`);
+	Mousetrap.bind(combo, (e) => {
 		log(`Hotkey Pressed: "${combo}"`);
+		e.preventDefault();
 		handler();
 	});
 }
 
-function setupMenu() {
+function appendMenuHtml() {
 	const modalHtml = html`
         <div id="${PKG_NAME}" class="${PKG_NAME}_modal">
             <div class="${PKG_NAME}_modal-content">
@@ -115,35 +125,35 @@ function setupMenu() {
                 <p><kbd>?</kbd> Clear and focus the sidebar search menu.</p>
                 <p><kbd>tab</kbd> Moves the sidebar menu focus down the tree.</p>
                 <p><kbd>shift</kbd> + <kbd>tab</kbd> Moves the sidebar menu focus up the tree.</p>
+                <p><kbd>alt</kbd> + <kbd>m</kbd> Show / Hide the sidebar menu.</p>
                 <h2>Buttons</h2>
                 <p><kbd>alt</kbd> + <kbd>n</kbd> Trigger a click on the 'New' button.</p>
                 <p><kbd>alt</kbd> + <kbd>b</kbd> Trigger a click on the 'Back' button.</p>
 			</div>
         </div>`;
 	document.body.appendChild(modalHtml);
+}
 
+function addMenuButtons() {
 	const modal = $(`#${PKG_NAME}`);
-	const newLink = $(
+	const rocketButton = $(
 		`<a class="app-header-console-btn" title="${SCRIPT_NAME}" href=""><i class="fa ${ICON}"></i></a>`,
-	);
-
-	$(newLink).click((e) => {
+	).click((e) => {
 		e.preventDefault();
 		modal.show();
 	});
+
+	const scriptButton = $(
+		`<a class="app-header-console-btn" title="Server Script" href="/#/View/ServerScript"><i class="fa ${SCRIPT_ICON}"></i></a>`,
+	);
+
 	$(`.${PKG_NAME}_close-btn`, modal).click(() => modal.hide());
-	$(".app-header-console-content span a:eq(1)").after(newLink);
+	$(".app-header-console-content span a:last")
+		.after(rocketButton)
+		.after(scriptButton);
 }
 
-/**
- * Wait for the specified element to appear in the DOM. When the element appears,
- * provide it to the callback.
- *
- * @param selector a jQuery selector (eg, 'div.container img')
- * @param callback function that takes selected element (null if timeout)
- * @param interval ms wait between each try
- */
-function waitForEl(selector, callback, interval) {
+function waitForSelector(selector, callback, interval) {
 	const poller = setInterval(() => {
 		const el = jQuery(selector);
 		if (el.length < 1) return;
